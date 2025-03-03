@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { db } from "../../firebase";
+import { db, auth } from "../../firebase";
 import {
   doc,
   getDoc,
@@ -9,8 +9,8 @@ import {
   onSnapshot,
   query,
   orderBy,
+  serverTimestamp,
 } from "firebase/firestore";
-import { auth } from "../../firebase"; // Ensure auth is imported for current user ID
 
 const ChatPage = () => {
   const { id } = useParams();
@@ -20,16 +20,20 @@ const ChatPage = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const userRef = doc(db, "users", id);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        setUser(userSnap.data());
+      try {
+        const userRef = doc(db, "users", id);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          setUser(userSnap.data());
+        }
+      } catch (error) {
+        console.error("Error fetching user:", error);
       }
     };
 
     const fetchMessages = () => {
       const chatRef = collection(db, `chats/${id}/messages`);
-      const q = query(chatRef, orderBy("timestamp", "asc")); // Sort messages by timestamp
+      const q = query(chatRef, orderBy("timestamp", "asc"));
       return onSnapshot(q, (snapshot) => {
         setMessages(
           snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
@@ -39,30 +43,40 @@ const ChatPage = () => {
 
     fetchUser();
     const unsubscribe = fetchMessages();
+
     return () => unsubscribe();
   }, [id]);
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
+    if (!auth.currentUser) {
+      console.error("User not authenticated.");
+      return;
+    }
 
-    await addDoc(collection(db, `chats/${id}/messages`), {
-      text: newMessage,
-      senderId: auth.currentUser?.uid, // Get the logged-in user's ID
-      timestamp: new Date(),
-    });
-
-    setNewMessage(""); // Clear input field after sending
+    try {
+      await addDoc(collection(db, `chats/${id}/messages`), {
+        text: newMessage,
+        senderId: auth.currentUser.uid,
+        timestamp: serverTimestamp(),
+      });
+      setNewMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
   };
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Header with user details */}
+      {/* Header */}
       <div className="bg-green-500 p-4 text-white text-lg flex items-center">
-        <img
-          src={user?.photoURL}
-          className="w-8 h-8 rounded-full mr-3"
-          alt="User"
-        />
+        {user?.photoURL && (
+          <img
+            src={user.photoURL}
+            className="w-8 h-8 rounded-full mr-3"
+            alt="User"
+          />
+        )}
         {user?.name || "User"}
       </div>
 
