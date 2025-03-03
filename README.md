@@ -75,10 +75,4 @@ Want to improve the chat app? 🎉 Fork the repo and submit a PR!
 
 ---
 
-## 📜 License  
-
-📄 This project is **open-source** under the **MIT License**.  
-
----
-
 🔥 **Enjoy chatting with a modern, sleek, and real-time messaging experience!** 🎉
